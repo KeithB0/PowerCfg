@@ -30,6 +30,8 @@
    [PowerCfgSetting]
    [PowerCfgPlan]
    [PowerCfgSubGroup]
+.FUNCTIONALITY
+    Reads powercfg
 #>
 function Get-PowercfgSettings {
         [CmdletBinding(DefaultParameterSetName="Query")]
@@ -69,12 +71,14 @@ function Get-PowercfgSettings {
             [String]
             $Setting
         )
-        Begin{
+        Begin{}
+        Process{
+            # Handle computername first outside of begin block in case it gets piped in
             if($ComputerName){
                 Try{
                     $cfg = Invoke-Command $ComputerName {
                         powercfg /l
-                    }
+                    } -ErrorAction Stop
                 }
                 Catch{
                     throw
@@ -84,8 +88,7 @@ function Get-PowercfgSettings {
                 $cfg = powercfg /l
             }
             $cfg = $cfg[3..(($cfg.count)-1)]
-        }
-        Process{
+
             if($PSCmdlet.ParameterSetName -eq 'List'){
                 if($List){
                     foreach($plan in $cfg){
@@ -111,8 +114,11 @@ function Get-PowercfgSettings {
                 if(!$PowerScheme){
                     $cfg = $cfg.where({$_ -match "(.+)\s{1}\*$"})
                 }
+                else{
+                    $cfg = $cfg.where({$_ -match "$PowerScheme"})
+                }
         
-                $schemeTable = $null
+                $schemeTable = @()
                 foreach($scheme in $cfg){
                     $null = $scheme -match "\((.+)\)";$name = $Matches[1]
                     $null = $scheme -match "\s{1}(\S+\d+\S+)\s{1}";$guid = $Matches[1]
@@ -125,7 +131,9 @@ function Get-PowercfgSettings {
                         Guid=[Guid]$guid
                         Active=[bool]$active
                     }
-                    [PowerCfgPlan]$schemeTable += $temp
+                    [PowerCfgPlan]$temp = $temp
+                    $schemeTable += $temp
+                    $null = Remove-Variable temp -Force
                 }
 
                 # Default Parameter behavior:
@@ -156,7 +164,7 @@ function Get-PowercfgSettings {
                     Try{
                         $QueryScheme = Invoke-Command $ComputerName {
                             powercfg /q $using:selPowerScheme
-                        }
+                        } -ErrorAction Stop
                     }
                     Catch{
                         throw
@@ -214,7 +222,7 @@ function Get-PowercfgSettings {
                             Try{
                                 $subgroupQuery = Invoke-Command $ComputerName {
                                     powercfg /q $using:selPowerScheme $using:Groupguid
-                                }
+                                } -ErrorAction Stop
                             }
                             Catch{
                                 throw
@@ -245,7 +253,7 @@ function Get-PowercfgSettings {
                                 Try{
                                     $settingQuery = Invoke-Command $ComputerName {
                                         powercfg /q $using:selPowerScheme $using:Groupguid $using:guid
-                                    }
+                                    } -ErrorAction Stop
                                 }
                                 Catch{
                                     throw
@@ -270,11 +278,11 @@ function Get-PowercfgSettings {
                             foreach($settingConfig in $settingRange){
                             # Minimum/Maximum settings (Range in output)
                                 if($settingConfig -match "Minimum Possible Setting: (.+)"){
-                                    $Min = $Matches[1]
+                                    $Min = [UInt32]$Matches[1]
                                 }
 
                                 elseif($settingConfig -match "Maximum Possible Setting: (.+)"){
-                                    $RangeHash[$Min] = $Matches[1]
+                                    $RangeHash[$Min] = [UInt32]$Matches[1]
                                 }
                             }
 
@@ -300,11 +308,14 @@ function Get-PowercfgSettings {
                                 Guid=[Guid]$guid
                                 Options=if($OptionsHash.Count -gt 0){$OptionsHash}else{$null}
                                 Range=if($RangeHash.Count -gt 0){@($RangeHash.Keys,$RangeHash.Values)}else{$null}
-                                CurrentAC = $outputCurrent.CurrentAC
-                                CurrentDC = $outputCurrent.CurrentDC
+                                CurrentAC = [UInt32]$outputCurrent.CurrentAC
+                                CurrentDC = [UInt32]$outputCurrent.CurrentDC
                             }
                             $temp = [PowerCfgSetting]::new($temp)
                             # Build using our custom object
+                            if($ComputerName){
+                                $temp | Add-Member -MemberType NoteProperty -Name ComputerName -Value $ComputerName
+                            }
 
                             $settingsTable += $temp
                         }

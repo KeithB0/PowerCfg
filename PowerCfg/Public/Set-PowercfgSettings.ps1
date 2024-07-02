@@ -1,24 +1,26 @@
 <#
 .Synopsis
-Short description
+   Sets PowerCfg settings
 .DESCRIPTION
-Long description
+   Set setting values to PowerCfg or pipe settings from Get-PowercfgSettings and set values.
 .EXAMPLE
-Example of how to use this cmdlet
+   Set-PowercfgSettings -ComputerName <computername> -PowerScheme 'High Performance' -SubGroup display -setting 'Turn off' -SetAC -SetDC -Value 120
+   Sets "Turn off display after" from the "Display" SubGroup to 120.
 .EXAMPLE
-Another example of how to use this cmdlet
+   Get-PowerCfgSettings -SubGroup display -Setting "Display Brightness" | Set-PowerCfgSettings -SetAC -Value 400 -Force
+   Gets the "Display Brightness" setting from the "Display" Subgroup and passes it to Set-PowerCfgSettings where it's AC value is set to 400.
 .INPUTS
-Inputs to this cmdlet (if any)
+   ComputerName
+   PowerScheme
+   SubGroup
+   Setting
+   [PowerCfgSetting]
 .OUTPUTS
-Output from this cmdlet (if any)
+   [PowerCfgSetting]
 .NOTES
-General notes
-.COMPONENT
-The component this cmdlet belongs to
-.ROLE
-The role this cmdlet belongs to
+   Relies on WinRM to use Invoke-Command when targeting remote computers.
 .FUNCTIONALITY
-The functionality that best describes this cmdlet
+   Configures powercfg
 #>
 function Set-PowercfgSettings
 {
@@ -108,31 +110,34 @@ function Set-PowercfgSettings
                )
             )
          }
-
-         if($ComputerName){
-            Try{
-               $cfg = Invoke-Command $ComputerName {
-                  powercfg /l
-               }
-            }
-            Catch{
-               throw
-            }
-         }
-         Else{
-            $cfg = powercfg /l
-         }
-         $cfg = $cfg[3..(($cfg.count)-1)]
       }
    Process
    {
+      # Computername handler first in Process block for pipeline compatibility
+      if($ComputerName){
+         Try{
+            $cfg = Invoke-Command $ComputerName {
+               powercfg /l
+            }
+         }
+         Catch{
+            throw
+         }
+      }
+      Else{
+         $cfg = powercfg /l
+      }
+      # Parse out the heading
+      $cfg = $cfg[3..(($cfg.count)-1)]
+
+      # Manual entry (no pipeline) requires dedicated string parsing as if we were using Get-PowercfgSetting.
       if($PSCmdlet.ParameterSetName -eq "Manual"){
          # Get PowerScheme
          if(!$PowerScheme){
             $cfg = $cfg.where({$_ -match "(.+)\s{1}\*$"})
          }
 
-         $schemeTable = $null
+         $schemeTable = @()
          foreach($scheme in $cfg){
             $null = $scheme -match "\((.+)\)";$name = $Matches[1]
             $null = $scheme -match "\s{1}(\S+\d+\S+)\s{1}";$guid = $Matches[1]
@@ -145,7 +150,9 @@ function Set-PowercfgSettings
                Guid=[Guid]$guid
                Active=[bool]$active
             }
-            [PowerCfgPlan]$schemeTable += $temp
+            [PowerCfgPlan]$temp = $temp
+            $schemeTable += $temp
+            $null = Remove-Variable temp -Force
          }
          if(!$PowerScheme){
             $PowerScheme = $schemeTable.Name
@@ -166,6 +173,7 @@ function Set-PowercfgSettings
             )
          }
 
+         # Get Power Plan
          if($ComputerName){
             Try{
                $QueryScheme = Invoke-Command $ComputerName {
@@ -198,11 +206,11 @@ function Set-PowercfgSettings
          # Get SubGroup
          $subgroups = (($QueryScheme) -match "SubGroup GUID: ").TrimStart().Trim()
 
+         # $subgroups being an array doesn't assign matches to $Matches, but instead returns the result.
+         # We forced a boolean return and then run it again to collect the string output.
          if([bool]($subgroups -match $SubGroup)){
             $p_SubGroup = $subgroups -match $SubGroup
          }
-         # $subgroups being an array doesn't assign matches to $Matches, but instead returns the result.
-         # We forced a boolean return and then run it again to collect the string output.
          else{
             $PSCmdlet.ThrowTerminatingError(
                   [System.Management.Automation.ErrorRecord]::new(
@@ -239,10 +247,10 @@ function Set-PowercfgSettings
          }
 
          # Get GUIDs
-
          $null = $p_SubGroup[0] -match "\s{1}(\S+\d+\S+)\s{1}";$Groupguid = $Matches[1]
          $null = $p_Setting[0] -match "\s{1}(\S+\d+\S+)\s{1}";$Settingguid = $Matches[1]
 
+         # Get Names
          $null = $p_SubGroup[0] -match "\((.+)\)";$Groupname = $Matches[1]
          $null = $p_Setting[0] -match "\((.+)\)";$Settingname = $Matches[1]
 
@@ -252,10 +260,10 @@ function Set-PowercfgSettings
          $commands = @()
 
          if($ComputerName){
-            $Target = "$ComputerName -> $Groupname->$Settingname"
+            $Target = "$ComputerName -> $Groupname -> $Settingname"
          }
          else{
-            $Target = "$Groupname->$Settingname"
+            $Target = "$Groupname -> $Settingname"
          }
 
          if($SetAC){
@@ -268,12 +276,33 @@ function Set-PowercfgSettings
                $commands += {powercfg /setdcvalueindex ($selPowerScheme) ($Groupguid) ($Settingguid) $value}
             }
          }
+
+         $PassThru = @{PowerScheme = $PowerScheme;SubGroup = $Groupname;Setting = $Settingname}
+
          if(!($ComputerName)){
-            $commands | ForEach-Object{& $_}
+            $commands | ForEach-Object{
+               & $_
+               Get-PowercfgSettings @PassThru
+            }
          }
          else{
+            $PassThru += @{ComputerName = $ComputerName}
             Try{
-               Invoke-Command -ComputerName $ComputerName {$using:commands | ForEach-Object{& $_}}
+               Invoke-Command -ComputerName $ComputerName {
+                  param(
+                     $selPowerScheme,
+                     $Groupguid,
+                     $Settingguid,
+                     $Value
+                  )
+                  if($using:SetDC){
+                     & powercfg /setdcvalueindex $selPowerScheme $Groupguid $Settingguid $Value
+                  }
+                  if($using:SetAC){
+                     & powercfg /setacvalueindex $selPowerScheme $Groupguid $Settingguid $Value
+                  }
+               } -ArgumentList $selPowerScheme,$Groupguid,$Settingguid,$Value
+               Get-PowercfgSettings @PassThru
             }
             Catch{
                throw
@@ -281,7 +310,7 @@ function Set-PowercfgSettings
          }
       }
 
-
+      # Pipeline entry - where a [PowerCfgSetting] is sent over, it holds all necessary arguments for local execution.
       if($PSCmdlet.ParameterSetName -eq "Pipeline"){
          if($p_Setting.count -gt 1){
             $PSCmdlet.ThrowTerminatingError(
@@ -294,36 +323,58 @@ function Set-PowercfgSettings
                   ""
                )
             )
-         }
+         } # Currently, not handling multiple settings. Plan to add piping entire subgroups and plans.
 
+         # Breaking up the variable properties into their own vars
          $p_PowerScheme = $p_Setting.Plan
          $p_SubGroup = $p_Setting.SubGroup
 
          $commands = @()
 
          if($ComputerName){
-            $Target = "$ComputerName -> $($p_SubGroup.Name)->$($p_Setting.Name)"
+            $Target = "$ComputerName -> $($p_SubGroup.Name) -> $($p_Setting.Name)"
          }
          else{
-            $Target = "$($p_SubGroup.Name)->$($p_Setting.Name)"
+            $Target = "$($p_SubGroup.Name) -> $($p_Setting.Name)"
          }
 
          if($SetAC){
             if(($Force) -or ($pscmdlet.ShouldProcess($Target, "Set AC value to $value"))){
-               $commands += {powercfg /setacvalueindex ($p_PowerScheme.guid.guid) ($p_SubGroup.guid.guid) ($p_Setting.guid.guid) $value}
+               $commands += {powercfg /setacvalueindex $p_PowerScheme.guid.guid $p_SubGroup.guid.guid $p_Setting.guid.guid $value}
             }
          }
          if($SetDC){
             if(($Force) -or ($PSCmdlet.ShouldProcess($Target, "Set DC value to $value"))){
-               $commands += {powercfg /setdcvalueindex ($p_PowerScheme.guid.guid) ($p_SubGroup.guid.guid) ($p_Setting.guid.guid) $value}
+               $commands += {powercfg /setdcvalueindex $p_PowerScheme.guid.guid $p_SubGroup.guid.guid $p_Setting.guid.guid $value}
             }
          }
+
+         $PassThru = @{PowerScheme = $p_PowerScheme.name;SubGroup = $p_SubGroup.name;Setting = $p_Setting.name}
+
          if(!($ComputerName)){
-            $commands | ForEach-Object{& $_}
+            $commands | ForEach-Object{
+               & $_
+               Get-PowercfgSettings @PassThru
+            }
          }
          else{
+            $PassThru += @{ComputerName = $ComputerName}
             Try{
-               Invoke-Command -ComputerName $ComputerName {$using:commands | ForEach-Object{& $_}}
+               Invoke-Command -ComputerName $ComputerName {
+                  param(
+                     $p_PowerScheme,
+                     $p_SubGroup,
+                     $p_Setting,
+                     $Value
+                  )
+                  if($using:SetDC){
+                     & powercfg /setdcvalueindex $p_PowerScheme $p_SubGroup $p_Setting $Value
+                  }
+                  if($using:SetAC){
+                     & powercfg /setacvalueindex $p_PowerScheme $p_SubGroup $p_Setting $Value
+                  }
+               } -ArgumentList $p_PowerScheme.guid.guid,$p_SubGroup.guid.guid,$p_Setting.guid.guid,$Value
+               Get-PowercfgSettings @PassThru
             }
             Catch{
                throw
