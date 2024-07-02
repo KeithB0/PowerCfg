@@ -31,6 +31,19 @@ function Set-PowercfgSettings
    Param
    (
       [Parameter(
+         ValueFromPipelineByPropertyName,
+         ParameterSetName="Pipeline"
+      )]
+      [Parameter(
+         ValueFromPipeline=$false,
+         ParameterSetName="Manual"
+      )]
+      [ValidateNotNullOrEmpty()]
+      [Alias("CN")]
+      [String]
+      $ComputerName,
+      
+      [Parameter(
          ParameterSetName="Manual",
          Position=0
       )]
@@ -237,26 +250,35 @@ function Set-PowercfgSettings
          # Until renamed, these are the vars for Plan, SubGroup, and Setting
          
          $commands = @()
-         # Need to break this down and splat it so it isn't written twice.
+
+         if($ComputerName){
+            $Target = "$ComputerName -> $Groupname->$Settingname"
+         }
+         else{
+            $Target = "$Groupname->$Settingname"
+         }
+
          if($SetAC){
-            if(($Force) -or ($pscmdlet.ShouldProcess("$Groupname->$Settingname", "Set AC value to $value"))){
+            if(($Force) -or ($pscmdlet.ShouldProcess($Target, "Set AC value to $value"))){
                $commands += {powercfg /setacvalueindex ($selPowerScheme) ($Groupguid) ($Settingguid) $value}
             }
          }
          if($SetDC){
-            if(($Force) -or ($PSCmdlet.ShouldProcess("$Groupname->$Settingname", "Set DC value to $value"))){
+            if(($Force) -or ($PSCmdlet.ShouldProcess($Target, "Set DC value to $value"))){
                $commands += {powercfg /setdcvalueindex ($selPowerScheme) ($Groupguid) ($Settingguid) $value}
             }
          }
-         $commands | ForEach-Object{& $_}
-
-         <#if($PassThru){
-            $paramList = @{PowerScheme = $selPowerScheme; SubGroup = $Groupguid; Setting = $Settingguid}
-            if($ComputerName){
-               $paramList += @{ComputerName = $ComputerName}
+         if(!($ComputerName)){
+            $commands | ForEach-Object{& $_}
+         }
+         else{
+            Try{
+               Invoke-Command -ComputerName $ComputerName {$using:commands | ForEach-Object{& $_}}
             }
-            Get-PowercfgSettings @paramList
-         }#>
+            Catch{
+               throw
+            }
+         }
       }
 
 
@@ -278,18 +300,35 @@ function Set-PowercfgSettings
          $p_SubGroup = $p_Setting.SubGroup
 
          $commands = @()
-         # Need to break this down and splat it so it isn't written twice.
+
+         if($ComputerName){
+            $Target = "$ComputerName -> $($p_SubGroup.Name)->$($p_Setting.Name)"
+         }
+         else{
+            $Target = "$($p_SubGroup.Name)->$($p_Setting.Name)"
+         }
+
          if($SetAC){
-            if(($Force) -or ($pscmdlet.ShouldProcess("$($p_SubGroup.Name)->$($p_Setting.Name)", "Set AC value to $value"))){
+            if(($Force) -or ($pscmdlet.ShouldProcess($Target, "Set AC value to $value"))){
                $commands += {powercfg /setacvalueindex ($p_PowerScheme.guid.guid) ($p_SubGroup.guid.guid) ($p_Setting.guid.guid) $value}
             }
          }
          if($SetDC){
-            if(($Force) -or ($PSCmdlet.ShouldProcess("$($p_SubGroup.Name)->$($p_Setting.Name)"))){
+            if(($Force) -or ($PSCmdlet.ShouldProcess($Target, "Set DC value to $value"))){
                $commands += {powercfg /setdcvalueindex ($p_PowerScheme.guid.guid) ($p_SubGroup.guid.guid) ($p_Setting.guid.guid) $value}
             }
          }
-         $commands | ForEach-Object{& $_}
+         if(!($ComputerName)){
+            $commands | ForEach-Object{& $_}
+         }
+         else{
+            Try{
+               Invoke-Command -ComputerName $ComputerName {$using:commands | ForEach-Object{& $_}}
+            }
+            Catch{
+               throw
+            }
+         }
       }
    }
    End
