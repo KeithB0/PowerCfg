@@ -98,7 +98,7 @@ PrivateData = @{
     PSData = @{
 
         # Tags applied to this module. These help with module discovery in online galleries.
-        Tags = @('IT')
+        Tags = @('IT','Power Configuration')
 
         # A URL to the license for this module.
         # LicenseUri = ''
