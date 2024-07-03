@@ -31,7 +31,9 @@ Install-Module -Name PowerCfg
 
 ---
 
-> ### 📘 PowerCfg is young
-> It currently only has Get and Set, but with pipeline compatibility. See the function help for examples.
+> ### 📘 PowerCfg is still young
+> Not all of cmd's powercfg switches are covered yet. What is here offers pipeline and remote computer support.
+>
+> See the function help for examples.
 
 I hope to soon add methods to the custom object types and more functions to cover the variety of switches present in the windows command.
