@@ -14,4 +14,8 @@ class PowerCfgPlan {
         $this.Guid = [Guid]$Plan.Guid
         $this.Active = [Bool]$Plan.Active
     }
+
+    PowerCfgPlan([String]$PlanName){
+        $this.Name = $PlanName
+    }
 }
