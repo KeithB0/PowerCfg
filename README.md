@@ -24,7 +24,7 @@ spcs balanced display "turn off" 0 -setac
 > Get-PowercfgSetting -ComputerName $compName -SubGroup "High Performance"
 > ```
 
-Try it out: https://www.powershellgallery.com/packages/PowerCfg/
+Try it out: https://www.powershellgallery.com/packages/PowerCfg
 ```powershell
 Install-Module -Name PowerCfg
 ```
