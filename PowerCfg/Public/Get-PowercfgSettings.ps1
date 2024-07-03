@@ -103,7 +103,11 @@ function Get-PowercfgSettings {
                             Guid=[Guid]$guid
                             Active=[bool]$temp
                         }
-                        [PowerCfgPlan]$plan
+                        $plan = [PowerCfgPlan]$plan
+                        if($ComputerName){
+                            $plan | Add-Member -MemberType NoteProperty -Name ComputerName -Value $ComputerName
+                        }
+                        $plan
                         # Seeems redundant, but we need to save $plan with the correct object time for appending to
                         # settings hidden property for easy pipeline usage.
                     }

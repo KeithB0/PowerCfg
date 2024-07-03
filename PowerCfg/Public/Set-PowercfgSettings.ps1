@@ -4,10 +4,12 @@
 .DESCRIPTION
    Set setting values to PowerCfg or pipe settings from Get-PowercfgSettings and set values.
 .EXAMPLE
-   Set-PowercfgSettings -ComputerName <computername> -PowerScheme 'High Performance' -SubGroup display -setting 'Turn off' -SetAC -SetDC -Value 120
+   Set-PowercfgSettings -ComputerName $computername -PowerScheme 'High Performance' -SubGroup display -setting 'Turn off' -SetAC -SetDC -Value 120
+
    Sets "Turn off display after" from the "Display" SubGroup to 120.
 .EXAMPLE
    Get-PowerCfgSettings -SubGroup display -Setting "Display Brightness" | Set-PowerCfgSettings -SetAC -Value 400 -Force
+
    Gets the "Display Brightness" setting from the "Display" Subgroup and passes it to Set-PowerCfgSettings where it's AC value is set to 400.
 .INPUTS
    ComputerName
@@ -173,21 +175,6 @@ function Set-PowercfgSettings
             )
          }
 
-         # Get Power Plan
-         if($ComputerName){
-            Try{
-               $QueryScheme = Invoke-Command $ComputerName {
-                  powercfg /q $using:selPowerScheme
-               }
-            }
-            Catch{
-               throw
-            }
-         }
-         Else{
-            $QueryScheme = powercfg /q $selPowerScheme
-         }
-
          # The error if a bad PowerScheme name is entered.
          if ((!$?) -or ($null -eq $selPowerScheme)) {
             $PSCmdlet.ThrowTerminatingError(
@@ -201,6 +188,21 @@ function Set-PowercfgSettings
                   $PowerScheme
                )
             )
+         }
+
+         # Get Power Plan
+         if($ComputerName){
+            Try{
+               $QueryScheme = Invoke-Command $ComputerName {
+                  powercfg /q $using:selPowerScheme
+               }
+            }
+            Catch{
+               throw
+            }
+         }
+         Else{
+            $QueryScheme = powercfg /q $selPowerScheme
          }
 
          # Get SubGroup
