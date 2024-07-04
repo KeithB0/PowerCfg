@@ -6,7 +6,7 @@ powercfg /setacvalueindex 44cd9e71-a820-4b41-b140-c31bfd6d8d16 533946e9-7bb0-45a
 ```
 sucks.
 
-PowerCfg module offers working with names instead of Guids, because...of course.
+### PowerCfg module offers working with names instead of Guids, because...of course.
 
 Isn't this better?
 ```powershell
