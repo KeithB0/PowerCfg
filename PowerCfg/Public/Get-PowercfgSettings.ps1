@@ -34,7 +34,10 @@
     Reads powercfg
 #>
 function Get-PowercfgSettings {
-        [CmdletBinding(DefaultParameterSetName="Query")]
+        [CmdletBinding(
+            DefaultParameterSetName="Query",
+            HelpUri="https://github.com/KeithB0/PowerCfg/wiki/Get%E2%80%90PowercfgSettings"
+        )]
         [Alias("gpcs")]
         param(
             [Parameter(
