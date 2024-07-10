@@ -229,7 +229,7 @@ function Set-PowercfgScheme
                         }
                         $NewList = Get-PowercfgSettings -ComputerName $ComputerName -List
                         Invoke-Command $ComputerName {
-                            $null = powercfg /changename (Compare-Object $using:schemeTable.Guid.Guid $using:NewList.Guid.Guid).InputObject ("$($using:PowerScheme.Name)-Copy")
+                            $null = powercfg /changename (Compare-Object $using:schemeTable.Guid.Guid $using:NewList.Guid.Guid).InputObject ("$($using:PowerScheme)-Copy")
                         }
                         Get-PowercfgSettings -ComputerName $ComputerName -List
                     }
@@ -240,7 +240,7 @@ function Set-PowercfgScheme
                 Else{
                     $null = powercfg /duplicatescheme $selPowerScheme
                     $NewList = Get-PowercfgSettings -List
-                    powercfg /changename (Compare-Object $schemeTable.Guid.Guid $NewList.Guid.Guid).InputObject ("$($PowerScheme.Name)-Copy")
+                    powercfg /changename (Compare-Object $schemeTable.Guid.Guid $NewList.Guid.Guid).InputObject ("$($PowerScheme)-Copy")
                     Get-PowercfgSettings -List
                 }
 
