@@ -88,7 +88,8 @@ function Set-PowercfgScheme
         $Duplicate,
 
         [Parameter(
-            ParameterSetName="Rename"
+            ParameterSetName="Rename",
+            Mandatory
         )]
         [ValidateNotNullOrEmpty()]
         [String]
