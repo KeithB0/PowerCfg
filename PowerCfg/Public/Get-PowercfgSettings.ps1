@@ -3,6 +3,20 @@
    Gets powercfg configuration data with object-oriented output.
 .DESCRIPTION
    Can list power schemes, list subgroups of a selected power scheme, and list settings of subgroups as well as their available and current settings.
+.PARAMETER List
+    List Power Schemes. Can be used with -ComputerName. Produces [PowerCfgPlan] object for piping.
+.PARAMETER Name
+    Used with -List to show power plans matching the provided name.
+.PARAMETER Active
+    Used with -List to show only the Active power plan.
+.PARAMETER ComputerName
+    Target remote computers. Uses Invoke-Command, relies on WinRM.
+.PARAMETER PowerScheme
+    Pull Subgroups of a specified Power Scheme. The active plan is the default when this parameter is not used. Produces [PowerCfgSubGroup] object for piping.
+.PARAMETER SubGroup
+    Pull Settings of a specified SubGroup. Shows Current settings and applicable values for use in Set-PowercfgSettings. Produces [PowerCfgSetting] object for piping.
+.PARAMETER Setting
+    Specifies a single setting in a SubGroup. This is recommended when piping results to Set-PowercfgSettings. Produces a single [PowerCfgSetting].
 .EXAMPLE
    Get-PowercfgSettings -List
 
@@ -45,6 +59,20 @@ function Get-PowercfgSettings {
             )]
             [Switch]
             $List,
+
+            [Parameter(
+                ParameterSetName="List",
+                Position=0
+            )]
+            [ValidateNotNullOrEmpty()]
+            [String]
+            $Name,
+
+            [Parameter(
+                ParameterSetName="List"
+            )]
+            [Switch]
+            $Active,
 
             [Parameter(
                 ValueFromPipelineByPropertyName
@@ -94,6 +122,25 @@ function Get-PowercfgSettings {
 
             if($PSCmdlet.ParameterSetName -eq 'List'){
                 if($List){
+                    if($Name){
+                        $cfg = $cfg.Where({$_ -match $Name})
+                        if($null -eq $cfg){
+                            $PSCmdlet.ThrowTerminatingError(
+                                [System.Management.Automation.ErrorRecord]::new(
+                                        [System.ArgumentNullException]::new(
+                                            "-Name",
+                                            "$Name has no matches."
+                                        ),
+                                        "PowerScheme.Null",
+                                        [System.Management.Automation.ErrorCategory]::ObjectNotFound,
+                                        $Name
+                                )
+                            )
+                        }
+                    }
+                    if($Active){
+                        $cfg = $cfg.where({$_ -match "(.+)\s{1}\*$"})
+                    }
                     foreach($plan in $cfg){
                         $null = $plan -match "\((.+)\)";$name = $Matches[1]
                         $null = $plan -match "\s{1}(\S+\d+\S+)\s{1}";$guid = $Matches[1]

@@ -12,7 +12,7 @@
 RootModule = 'PowerCfg.psm1'
 
 # Version number of this module.
-ModuleVersion = '0.1.1'
+ModuleVersion = '0.2.0'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Desktop','Core')
@@ -69,7 +69,7 @@ FormatsToProcess = @('PowerCfgPlan.ps1xml','PowerCfgSetting.ps1xml','PowerCfgSub
 # NestedModules = @()
 
 # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
-FunctionsToExport = @('Get-PowercfgSettings','Set-PowercfgSettings','Set-ActiveScheme')
+FunctionsToExport = @('Get-PowercfgSettings','Set-PowercfgSettings','Set-PowercfgScheme')
 
 # Cmdlets to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no cmdlets to export.
 CmdletsToExport = @()
@@ -89,7 +89,7 @@ AliasesToExport = @('gpcs','spcs')
 # List of all files packaged with this module
 FileList = @(
     'PowerCfgPlan.ps1xml','PowerCfgSubGroup.ps1xml','PowerCfgSetting.ps1xml',
-    'Public\Get-PowercfgSettings.ps1','Public\Set-PowercfgSettings.ps1','Public\Set-ActiveScheme.ps1'
+    'Public\Get-PowercfgSettings.ps1','Public\Set-PowercfgSettings.ps1','Public\Set-PowercfgScheme.ps1'
     'Scripts\PowerCfgSetting.ps1','Scripts\PowerCfgSubGroup.ps1','Scripts\PowerCfgPlan.ps1')
 
 # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
