@@ -1,9 +1,9 @@
 # PowerCfg for PowerShell
 ## Why?
-Because this:
-```cmd
+Because this:  
+`
 powercfg /setacvalueindex 44cd9e71-a820-4b41-b140-c31bfd6d8d16 533946e9-7bb0-45a1-a491-c2869dc960f7 90bc6708-88e1-4e70-8ec9-dc020b9c6dbc 0
-```
+`  
 sucks.
 
 ### PowerCfg module offers working with names instead of Guids, because...of course.
