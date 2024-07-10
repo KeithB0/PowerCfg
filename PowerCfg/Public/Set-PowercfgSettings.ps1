@@ -3,6 +3,22 @@
    Sets PowerCfg settings
 .DESCRIPTION
    Set setting values to PowerCfg or pipe settings from Get-PowercfgSettings and set values.
+.PARAMETER ComputerName
+   Target a specified computer. When piping results from Get-PowercfgSettings, the original targeted computer is retained and this parameter is not necessary.
+.PARAMETER PowerScheme
+   Specify the PowerScheme of which settings to be modified. When not used, the currently active power plan is used by default.
+.PARAMETER SubGroup
+   Specified SubGroup that holds the settings that can be changed.
+.PARAMETER Setting
+   The setting to be modified. See Get-PowercfgSettings to see valid ranges and options.
+.PARAMETER Value
+   Value of which to set the specified setting to.
+.PARAMETER SetAC
+   Set value to the AC mode. Can be used with SetDC to modify both values.
+.PARAMETER SetDC
+   Set value to the DC mode. Can be used with SetAC to modify both values.
+.PARAMETER Force
+   Ignore prompt from ShouldProcess, attempt to complete action silently.
 .EXAMPLE
    Set-PowercfgSettings -ComputerName $computername -PowerScheme 'High Performance' -SubGroup display -setting 'Turn off' -SetAC -SetDC -Value 120
 
@@ -29,7 +45,8 @@ function Set-PowercfgSettings
    [CmdletBinding(
       SupportsShouldProcess,
       ConfirmImpact="High",
-      DefaultParameterSetName="Manual"
+      DefaultParameterSetName="Manual",
+      HelpUri="https://github.com/KeithB0/PowerCfg/wiki/Set%E2%80%90PowercfgSettings"
    )]
    [Alias("spcs")]
    Param
