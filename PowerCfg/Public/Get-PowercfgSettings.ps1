@@ -121,46 +121,44 @@ function Get-PowercfgSettings {
             $cfg = $cfg[3..(($cfg.count)-1)]
 
             if($PSCmdlet.ParameterSetName -eq 'List'){
-                if($List){
-                    if($Name){
-                        $cfg = $cfg.Where({$_ -match $Name})
-                        if($null -eq $cfg){
-                            $PSCmdlet.ThrowTerminatingError(
-                                [System.Management.Automation.ErrorRecord]::new(
-                                        [System.ArgumentNullException]::new(
-                                            "-Name",
-                                            "$Name has no matches."
-                                        ),
-                                        "PowerScheme.Null",
-                                        [System.Management.Automation.ErrorCategory]::ObjectNotFound,
-                                        $Name
-                                )
+                if($Name){
+                    $cfg = $cfg.Where({$_ -match $Name})
+                    if($null -eq $cfg){
+                        $PSCmdlet.ThrowTerminatingError(
+                            [System.Management.Automation.ErrorRecord]::new(
+                                    [System.ArgumentNullException]::new(
+                                        "-Name",
+                                        "$Name has no matches."
+                                    ),
+                                    "PowerScheme.Null",
+                                    [System.Management.Automation.ErrorCategory]::ObjectNotFound,
+                                    $Name
                             )
-                        }
+                        )
                     }
-                    if($Active){
-                        $cfg = $cfg.where({$_ -match "(.+)\s{1}\*$"})
-                    }
-                    foreach($plan in $cfg){
-                        $null = $plan -match "\((.+)\)";$name = $Matches[1]
-                        $null = $plan -match "\s{1}(\S+\d+\S+)\s{1}";$guid = $Matches[1]
+                }
+                if($Active){
+                    $cfg = $cfg.where({$_ -match "(.+)\s{1}\*$"})
+                }
+                foreach($plan in $cfg){
+                    $null = $plan -match "\((.+)\)";$name = $Matches[1]
+                    $null = $plan -match "\s{1}(\S+\d+\S+)\s{1}";$guid = $Matches[1]
 
-                        if($plan -match "\*$"){$temp = $true}
-                        elseif($plan -notmatch "\*$"){$temp = $false}
+                    if($plan -match "\*$"){$temp = $true}
+                    elseif($plan -notmatch "\*$"){$temp = $false}
 
-                        $plan = [PSCustomObject]@{
-                            Name=$name
-                            Guid=[Guid]$guid
-                            Active=[bool]$temp
-                        }
-                        $plan = [PowerCfgPlan]$plan
-                        if($ComputerName){
-                            $plan | Add-Member -MemberType NoteProperty -Name ComputerName -Value $ComputerName
-                        }
-                        $plan
-                        # Seeems redundant, but we need to save $plan with the correct object time for appending to
-                        # settings hidden property for easy pipeline usage.
+                    $plan = [PSCustomObject]@{
+                        Name=$name
+                        Guid=[Guid]$guid
+                        Active=[bool]$temp
                     }
+                    $plan = [PowerCfgPlan]$plan
+                    if($ComputerName){
+                        $plan | Add-Member -MemberType NoteProperty -Name ComputerName -Value $ComputerName
+                    }
+                    $plan
+                    # Seeems redundant, but we need to save $plan with the correct object type for appending to
+                    # settings hidden property for easy pipeline usage.
                 }
             }
             if($PSCmdlet.ParameterSetName -eq "Query"){
