@@ -110,13 +110,44 @@ function Get-PowercfgSettings {
                     $cfg = Invoke-Command $ComputerName {
                         powercfg /l
                     } -ErrorAction Stop
+                    $DescList = Invoke-Command $ComputerName {
+                        (gcim Win32_PowerPlan -Namespace root\cimv2\power)
+                    } -ErrorAction SilentlyContinue
+                }
+                Catch [Microsoft.Management.Infrastructure.CimException]{
+                    $writeError = @{
+                        Exception = [Microsoft.Management.Infrastructure.CimException]::new("$($Error[0].Exception.Message)")
+                        Category = $Error[0].CategoryInfo.Category
+                        CategoryActivity = "$($Error[0].CategoryInfo.Activity)"
+                        CategoryReason = "$($Error[0].CategoryInfo.Reason)"
+                        CategoryTargetName = "$($Error[0].CategoryInfo.TargetName)"
+                        CategoryTargetType = "$($Error[0].CategoryInfo.TargetType)"
+                    }
+                    Write-Error @writeError
                 }
                 Catch{
                     throw
                 }
             }
             Else{
-                $cfg = powercfg /l
+                Try{
+                    $cfg = powercfg /l
+                    $DescList = (gcim Win32_PowerPlan -Namespace root\cimv2\power -ErrorAction Stop)
+                }
+                Catch [Microsoft.Management.Infrastructure.CimException]{
+                    $writeError = @{
+                        Exception = [Microsoft.Management.Infrastructure.CimException]::new("$($Error[0].Exception.Message)")
+                        Category = $Error[0].CategoryInfo.Category
+                        CategoryActivity = "$($Error[0].CategoryInfo.Activity)"
+                        CategoryReason = "$($Error[0].CategoryInfo.Reason)"
+                        CategoryTargetName = "$($Error[0].CategoryInfo.TargetName)"
+                        CategoryTargetType = "$($Error[0].CategoryInfo.TargetType)"
+                    }
+                    Write-Error @writeError
+                }
+                Catch{
+                    throw
+                }
             }
             $cfg = $cfg[3..(($cfg.count)-1)]
 
@@ -144,11 +175,14 @@ function Get-PowercfgSettings {
                     $null = $plan -match "\((.+)\)";$name = $Matches[1]
                     $null = $plan -match "\s{1}(\S+\d+\S+)\s{1}";$guid = $Matches[1]
 
+                    $Desc = $DescList.where({$_.ElementName -eq $name}).Description
+
                     if($plan -match "\*$"){$temp = $true}
                     elseif($plan -notmatch "\*$"){$temp = $false}
 
                     $plan = [PSCustomObject]@{
                         Name=$name
+                        Description=$Desc
                         Guid=[Guid]$guid
                         Active=[bool]$temp
                     }
@@ -157,7 +191,7 @@ function Get-PowercfgSettings {
                         $plan | Add-Member -MemberType NoteProperty -Name ComputerName -Value $ComputerName
                     }
                     $plan
-                    # Seeems redundant, but we need to save $plan with the correct object type for appending to
+                    # Seeems redundant, but we need to save $plan with the correct object time for appending to
                     # settings hidden property for easy pipeline usage.
                 }
             }
@@ -175,11 +209,14 @@ function Get-PowercfgSettings {
                     $null = $scheme -match "\((.+)\)";$name = $Matches[1]
                     $null = $scheme -match "\s{1}(\S+\d+\S+)\s{1}";$guid = $Matches[1]
 
+                    $Desc = $Desc.where({$_.ElementName -eq $name}).Description
+
                     if($scheme -match "\*$"){$active = $true}
                     elseif($scheme -notmatch "\*$"){$active = $false}
 
                     $temp = [PSCustomObject]@{
                         Name=$name
+                        Description=$Desc
                         Guid=[Guid]$guid
                         Active=[bool]$active
                     }
