@@ -110,57 +110,89 @@ function Get-PowercfgSettings {
                     $cfg = Invoke-Command $ComputerName {
                         powercfg /l
                     } -ErrorAction Stop
+                    $DescList = Invoke-Command $ComputerName {
+                        (gcim Win32_PowerPlan -Namespace root\cimv2\power)
+                    } -ErrorAction SilentlyContinue
+                }
+                Catch [Microsoft.Management.Infrastructure.CimException]{
+                    $writeError = @{
+                        Exception = [Microsoft.Management.Infrastructure.CimException]::new("$($Error[0].Exception.Message)")
+                        Category = $Error[0].CategoryInfo.Category
+                        CategoryActivity = "$($Error[0].CategoryInfo.Activity)"
+                        CategoryReason = "$($Error[0].CategoryInfo.Reason)"
+                        CategoryTargetName = "$($Error[0].CategoryInfo.TargetName)"
+                        CategoryTargetType = "$($Error[0].CategoryInfo.TargetType)"
+                    }
+                    Write-Error @writeError
                 }
                 Catch{
                     throw
                 }
             }
             Else{
-                $cfg = powercfg /l
+                Try{
+                    $cfg = powercfg /l
+                    $DescList = (gcim Win32_PowerPlan -Namespace root\cimv2\power -ErrorAction Stop)
+                }
+                Catch [Microsoft.Management.Infrastructure.CimException]{
+                    $writeError = @{
+                        Exception = [Microsoft.Management.Infrastructure.CimException]::new("$($Error[0].Exception.Message)")
+                        Category = $Error[0].CategoryInfo.Category
+                        CategoryActivity = "$($Error[0].CategoryInfo.Activity)"
+                        CategoryReason = "$($Error[0].CategoryInfo.Reason)"
+                        CategoryTargetName = "$($Error[0].CategoryInfo.TargetName)"
+                        CategoryTargetType = "$($Error[0].CategoryInfo.TargetType)"
+                    }
+                    Write-Error @writeError
+                }
+                Catch{
+                    throw
+                }
             }
             $cfg = $cfg[3..(($cfg.count)-1)]
 
             if($PSCmdlet.ParameterSetName -eq 'List'){
-                if($List){
-                    if($Name){
-                        $cfg = $cfg.Where({$_ -match $Name})
-                        if($null -eq $cfg){
-                            $PSCmdlet.ThrowTerminatingError(
-                                [System.Management.Automation.ErrorRecord]::new(
-                                        [System.ArgumentNullException]::new(
-                                            "-Name",
-                                            "$Name has no matches."
-                                        ),
-                                        "PowerScheme.Null",
-                                        [System.Management.Automation.ErrorCategory]::ObjectNotFound,
-                                        $Name
-                                )
+                if($Name){
+                    $cfg = $cfg.Where({$_ -match $Name})
+                    if($null -eq $cfg){
+                        $PSCmdlet.ThrowTerminatingError(
+                            [System.Management.Automation.ErrorRecord]::new(
+                                    [System.ArgumentNullException]::new(
+                                        "-Name",
+                                        "$Name has no matches."
+                                    ),
+                                    "PowerScheme.Null",
+                                    [System.Management.Automation.ErrorCategory]::ObjectNotFound,
+                                    $Name
                             )
-                        }
+                        )
                     }
-                    if($Active){
-                        $cfg = $cfg.where({$_ -match "(.+)\s{1}\*$"})
-                    }
-                    foreach($plan in $cfg){
-                        $null = $plan -match "\((.+)\)";$name = $Matches[1]
-                        $null = $plan -match "\s{1}(\S+\d+\S+)\s{1}";$guid = $Matches[1]
+                }
+                if($Active){
+                    $cfg = $cfg.where({$_ -match "(.+)\s{1}\*$"})
+                }
+                foreach($plan in $cfg){
+                    $null = $plan -match "\((.+)\)";$name = $Matches[1]
+                    $null = $plan -match "\s{1}(\S+\d+\S+)\s{1}";$guid = $Matches[1]
 
-                        if($plan -match "\*$"){$temp = $true}
-                        elseif($plan -notmatch "\*$"){$temp = $false}
+                    $Desc = $DescList.where({$_.ElementName -eq $name}).Description
 
-                        $plan = [PSCustomObject]@{
-                            Name=$name
-                            Guid=[Guid]$guid
-                            Active=[bool]$temp
-                        }
-                        $plan = [PowerCfgPlan]$plan
-                        if($ComputerName){
-                            $plan | Add-Member -MemberType NoteProperty -Name ComputerName -Value $ComputerName
-                        }
-                        $plan
-                        # Seeems redundant, but we need to save $plan with the correct object time for appending to
-                        # settings hidden property for easy pipeline usage.
+                    if($plan -match "\*$"){$temp = $true}
+                    elseif($plan -notmatch "\*$"){$temp = $false}
+
+                    $plan = [PSCustomObject]@{
+                        Name=$name
+                        Description=$Desc
+                        Guid=[Guid]$guid
+                        Active=[bool]$temp
                     }
+                    $plan = [PowerCfgPlan]$plan
+                    if($ComputerName){
+                        $plan | Add-Member -MemberType NoteProperty -Name ComputerName -Value $ComputerName
+                    }
+                    $plan
+                    # Seeems redundant, but we need to save $plan with the correct object time for appending to
+                    # settings hidden property for easy pipeline usage.
                 }
             }
             if($PSCmdlet.ParameterSetName -eq "Query"){
@@ -177,11 +209,14 @@ function Get-PowercfgSettings {
                     $null = $scheme -match "\((.+)\)";$name = $Matches[1]
                     $null = $scheme -match "\s{1}(\S+\d+\S+)\s{1}";$guid = $Matches[1]
 
+                    $Desc = $Desc.where({$_.ElementName -eq $name}).Description
+
                     if($scheme -match "\*$"){$active = $true}
                     elseif($scheme -notmatch "\*$"){$active = $false}
 
                     $temp = [PSCustomObject]@{
                         Name=$name
+                        Description=$Desc
                         Guid=[Guid]$guid
                         Active=[bool]$active
                     }

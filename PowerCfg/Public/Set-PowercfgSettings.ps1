@@ -137,7 +137,10 @@ function Set-PowercfgSettings
          Try{
             $cfg = Invoke-Command $ComputerName {
                powercfg /l
-            }
+            } -ErrorAction Stop
+            $DescList = Invoke-Command $ComputerName {
+               (gcim Win32_PowerPlan -Namespace root\cimv2\power)
+           } -ErrorAction SilentlyContinue
          }
          Catch{
             throw
@@ -145,6 +148,7 @@ function Set-PowercfgSettings
       }
       Else{
          $cfg = powercfg /l
+         $DescList = (gcim Win32_PowerPlan -Namespace root\cimv2\power)
       }
       # Parse out the heading
       $cfg = $cfg[3..(($cfg.count)-1)]
@@ -161,11 +165,14 @@ function Set-PowercfgSettings
             $null = $scheme -match "\((.+)\)";$name = $Matches[1]
             $null = $scheme -match "\s{1}(\S+\d+\S+)\s{1}";$guid = $Matches[1]
 
+            $Desc = $DescList.where({$_.ElementName -eq $name}).Description
+
             if($scheme -match "\*$"){$active = $true}
             elseif($scheme -notmatch "\*$"){$active = $false}
 
             $temp = [PSCustomObject]@{
                Name=$name
+               Description=$Desc
                Guid=[Guid]$guid
                Active=[bool]$active
             }

@@ -62,8 +62,7 @@ function Set-PowercfgScheme
         [Parameter(
             Mandatory,
             ValueFromPipeline,
-            ValueFromPipelineByPropertyName,
-            Position=0
+            ValueFromPipelineByPropertyName
         )]
         [ValidateNotNullOrEmpty()]
         [PowerCfgPlan]
@@ -96,7 +95,8 @@ function Set-PowercfgScheme
         $Rename,
 
         [Parameter(
-            ParameterSetName="Rename"
+            ParameterSetName="Rename",
+            Position=1
         )]
         [String]
         $Description
@@ -116,7 +116,10 @@ function Set-PowercfgScheme
                 Try{
                     $cfg = Invoke-Command $ComputerName {
                         powercfg /l
-                    }
+                    } -ErrorAction Stop
+                    $DescList = Invoke-Command $ComputerName {
+                        (gcim Win32_PowerPlan -Namespace root\cimv2\power)
+                    } -ErrorAction SilentlyContinue
                 }
                 Catch{
                     throw
@@ -124,6 +127,7 @@ function Set-PowercfgScheme
             }
             Else{
                 $cfg = powercfg /l
+                $DescList = (gcim Win32_PowerPlan -Namespace root\cimv2\power)
             }
         }
         # Parse out the heading
@@ -135,11 +139,14 @@ function Set-PowercfgScheme
             $null = $scheme -match "\((.+)\)";$name = $Matches[1]
             $null = $scheme -match "\s{1}(\S+\d+\S+)\s{1}";$guid = $Matches[1]
 
+            $Desc = $DescList.where({$_.ElementName -eq $name}).Description
+
             if($scheme -match "\*$"){$active = $true}
             elseif($scheme -notmatch "\*$"){$active = $false}
 
             $temp = [PSCustomObject]@{
                 Name=$name
+                Description=$Desc
                 Guid=[Guid]$guid
                 Active=[bool]$active
             }
@@ -179,7 +186,7 @@ function Set-PowercfgScheme
             $null = $tallyScheme++
 
             # Force PowerScheme name to match exactly
-            $PowerScheme = $schemeTable.Name | Where-Object {$_ -match $PowerScheme.Name}
+            $PowerSchemeName = $schemeTable.Name | Where-Object {$_ -match $PowerScheme.Name}
 
             if($PSCmdlet.ParameterSetName -eq "Active"){
 
@@ -230,7 +237,7 @@ function Set-PowercfgScheme
                         }
                         $NewList = Get-PowercfgSettings -ComputerName $ComputerName -List
                         Invoke-Command $ComputerName {
-                            $null = powercfg /changename (Compare-Object $using:schemeTable.Guid.Guid $using:NewList.Guid.Guid).InputObject ("$($using:PowerScheme)-Copy")
+                            $null = powercfg /changename (Compare-Object $using:schemeTable.Guid.Guid $using:NewList.Guid.Guid).InputObject ("$($using:PowerSchemeName)-Copy")
                         }
                         Get-PowercfgSettings -ComputerName $ComputerName -List
                     }
@@ -241,7 +248,7 @@ function Set-PowercfgScheme
                 Else{
                     $null = powercfg /duplicatescheme $selPowerScheme
                     $NewList = Get-PowercfgSettings -List
-                    powercfg /changename (Compare-Object $schemeTable.Guid.Guid $NewList.Guid.Guid).InputObject ("$($PowerScheme)-Copy")
+                    powercfg /changename (Compare-Object $schemeTable.Guid.Guid $NewList.Guid.Guid).InputObject ("$($PowerSchemeName)-Copy")
                     Get-PowercfgSettings -List
                 }
 
