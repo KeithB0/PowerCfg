@@ -31,7 +31,8 @@ I do my best to follow PowerShell best practices and follow my own rigid standar
 - Uses custom classes that provides methods matching functionality found in the functions
 - Provides expansive help, not to exclude each parameter
 - Custom formatting, including all properties as they might relate to the object, yet only showing those that matter most immediately to the user
-- Avoiding piping within the functions as much as possible. (You may notice use of `.Where()` rather than ` | Where-Object {}`, for example)
+- Avoiding piping within the functions as much as possible.  
+  (You may notice use of `.Where()` rather than ` | Where-Object {}`, for example)
   
 And much more... Not to say I'm hitting all of the marks all of the time, yet, but I hope the module delivers an experience indistinguishible from native PowerShell.  
 
