@@ -35,7 +35,7 @@ I do my best to follow PowerShell best practices and follow my own rigid standar
   
 And much more... Not to say I'm hitting all of the marks all of the time, yet, but I hope the module delivers an experience indistinguishible from native PowerShell.  
 
-Try it out: https://www.powershellgallery.com/packages/PowerCfg/0.2.0
+## Try it out: https://www.powershellgallery.com/packages/PowerCfg/0.2.1
 ```powershell
 Install-Module -Name PowerCfg
 ```
