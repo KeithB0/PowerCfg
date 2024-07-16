@@ -124,10 +124,12 @@ function Set-PowercfgScheme
                 Catch{
                     throw
                 }
+                Write-Verbose "Queried scheme list on $ComputerName"
             }
             Else{
                 $cfg = powercfg /l
                 $DescList = (gcim Win32_PowerPlan -Namespace root\cimv2\power)
+                Write-Verbose "Queried scheme list"
             }
         }
         # Parse out the heading
@@ -163,10 +165,11 @@ function Set-PowercfgScheme
 
         if($schemeTable.Guid.Guid -contains $PowerScheme.Guid.Guid){
             $selPowerScheme = $PowerScheme.Guid.Guid
+            Write-Verbose "Acquired guid from pipeline"
         }
         else{
             $selPowerScheme = ($schemeTable.Where({$_.Name -like "*$($PowerScheme.Name)*"}).Guid.Guid)
-        }
+        } # Should check for an exact match and prioritize over matches, in cases where you want to set "Balanced" to active, but "Balanced-Copy" is an additional match
 
         if($selPowerScheme.count -gt 1){
             $PSCmdlet.ThrowTerminatingError(
@@ -187,6 +190,7 @@ function Set-PowercfgScheme
 
             # Force PowerScheme name to match exactly
             $PowerSchemeName = $schemeTable.Name | Where-Object {$_ -match $PowerScheme.Name}
+            Write-Verbose "Determined power scheme, $PowerSchemeName, and acquired guid"
 
             if($PSCmdlet.ParameterSetName -eq "Active"){
 
@@ -200,9 +204,11 @@ function Set-PowercfgScheme
                     Catch{
                         throw
                     }
+                    Write-Verbose "Set active scheme on $ComputerName"
                 }
                 Else{
                     powercfg /s $selPowerScheme
+                    Write-Verbose "Set active scheme"
                     Get-PowercfgSettings -List
                 }
 
@@ -220,9 +226,11 @@ function Set-PowercfgScheme
                     Catch{
                         throw
                     }
+                    Write-Verbose "Deleted scheme from $ComputerName"
                 }
                 Else{
                     powercfg /d $selPowerScheme
+                    Write-Verbose "Deleted scheme"
                     Get-PowercfgSettings -List
                 }
 
@@ -244,11 +252,13 @@ function Set-PowercfgScheme
                     Catch{
                         throw
                     }
+                    Write-Verbose "Duplicated scheme on $ComputerName"
                 }
                 Else{
                     $null = powercfg /duplicatescheme $selPowerScheme
                     $NewList = Get-PowercfgSettings -List
                     powercfg /changename (Compare-Object $schemeTable.Guid.Guid $NewList.Guid.Guid).InputObject ("$($PowerSchemeName)-Copy")
+                    Write-Verbose "Duplicated scheme"
                     Get-PowercfgSettings -List
                 }
 
@@ -273,6 +283,7 @@ function Set-PowercfgScheme
                     Catch{
                         throw
                     }
+                    Write-Verbose "Renamed scheme on $ComputerName"
                 }
                 Else{
                     if(!($Description)){
@@ -281,6 +292,7 @@ function Set-PowercfgScheme
                     else{
                         powercfg /changename $selPowerScheme $Rename $Description
                     }
+                    Write-Verbose "Duplicated scheme"
                     Get-PowercfgSettings -List
                 }
 
