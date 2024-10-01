@@ -165,7 +165,9 @@ function Set-PowercfgSettings
             $null = $scheme -match "\((.+)\)";$name = $Matches[1]
             $null = $scheme -match "\s{1}(\S+\d+\S+)\s{1}";$guid = $Matches[1]
 
-            $Desc = $DescList.where({$_.ElementName -eq $name}).Description
+            # $Desc = $DescList.where({$_.ElementName -eq $name}).Description
+            # .Where() doesn't work here in DESK edition PowerShell.
+            $Desc = (Where-Object -InputObject $DescList -FilterScript {$_.ElementName -eq $name}).Description
 
             if($scheme -match "\*$"){$active = $true}
             elseif($scheme -notmatch "\*$"){$active = $false}
