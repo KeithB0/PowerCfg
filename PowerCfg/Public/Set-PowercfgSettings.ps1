@@ -109,27 +109,24 @@ function Set-PowercfgSettings
       $SetDC,
 
       [Switch]
-      $Force#,
-
-      #[Switch]
-      #$PassThru
+      $Force
    )
 
-      Begin{
-         if(!($SetAC -or $SetDC)){
-            $PSCmdlet.ThrowTerminatingError(
-               [System.Management.Automation.ErrorRecord]::new(
-                  [System.ArgumentNullException]::new(
-                     "-SetAC, -SetDC",
-                     "Setting type not specified. Use one or both."
-                  ),
-                  "PowerScheme.TypeSetting",
-                  [System.Management.Automation.ErrorCategory]::NotSpecified,
-                  ""
-               )
+   Begin{
+      if(!($SetAC -or $SetDC)){
+         $PSCmdlet.ThrowTerminatingError(
+            [System.Management.Automation.ErrorRecord]::new(
+               [System.ArgumentNullException]::new(
+                  "-SetAC, -SetDC",
+                  "Setting type not specified. Use one or both."
+               ),
+               "PowerScheme.TypeSetting",
+               [System.Management.Automation.ErrorCategory]::NotSpecified,
+               ""
             )
-         }
+         )
       }
+   }
    Process
    {
       # Computername handler first in Process block for pipeline compatibility
@@ -145,10 +142,12 @@ function Set-PowercfgSettings
          Catch{
             throw
          }
+         Write-Verbose "Queried $ComputerNamee for power schemes"
       }
       Else{
          $cfg = powercfg /l
          $DescList = (gcim Win32_PowerPlan -Namespace root\cimv2\power)
+         Write-Verbose "Queried power schemes"
       }
       # Parse out the heading
       $cfg = $cfg[3..(($cfg.count)-1)]
@@ -158,6 +157,7 @@ function Set-PowercfgSettings
          # Get PowerScheme
          if(!$PowerScheme){
             $cfg = $cfg.where({$_ -match "(.+)\s{1}\*$"})
+            Write-Verbose "No power scheme selected, using currently active scheme"
          }
 
          $schemeTable = @()
@@ -165,7 +165,9 @@ function Set-PowercfgSettings
             $null = $scheme -match "\((.+)\)";$name = $Matches[1]
             $null = $scheme -match "\s{1}(\S+\d+\S+)\s{1}";$guid = $Matches[1]
 
-            $Desc = $DescList.where({$_.ElementName -eq $name}).Description
+            # $Desc = $DescList.where({$_.ElementName -eq $name}).Description
+            # .Where() doesn't work here in DESK edition PowerShell.
+            $Desc = (Where-Object -InputObject $DescList -FilterScript {$_.ElementName -eq $name}).Description
 
             if($scheme -match "\*$"){$active = $true}
             elseif($scheme -notmatch "\*$"){$active = $false}
@@ -214,6 +216,8 @@ function Set-PowercfgSettings
             )
          }
 
+         Write-Verbose "Using $($schemeTable.Name) for power scheme, acquired guid"
+
          # Get Power Plan
          if($ComputerName){
             Try{
@@ -224,9 +228,11 @@ function Set-PowercfgSettings
             Catch{
                throw
             }
+            Write-Verbose "Querying $($schemeTable.Name)'s scheme on $ComputerName"
          }
          Else{
             $QueryScheme = powercfg /q $selPowerScheme
+            Write-Verbose "Querying $($schemeTable.Name)"
          }
 
          # Get SubGroup
@@ -250,6 +256,7 @@ function Set-PowercfgSettings
                   )
             ) # The error for if a bad SubGroup name is specified.
          }
+         Write-Verbose "Using subgroup, $p_SubGroup"
 
          # Get Setting
          $settings = (($QueryScheme) -match "Power Setting Guid: ").TrimStart().Trim()
@@ -271,6 +278,7 @@ function Set-PowercfgSettings
                )
             ) # The error for if a bad SubGroup name is specified.
          }
+         Write-Verbose "Using setting, $p_Setting"
 
          # Get GUIDs
          $null = $p_SubGroup[0] -match "\s{1}(\S+\d+\S+)\s{1}";$Groupguid = $Matches[1]
@@ -295,11 +303,13 @@ function Set-PowercfgSettings
          if($SetAC){
             if(($Force) -or ($pscmdlet.ShouldProcess($Target, "Set AC value to $value"))){
                $commands += {powercfg /setacvalueindex ($selPowerScheme) ($Groupguid) ($Settingguid) $value}
+               Write-Verbose "Changing AC value to $value"
             }
          }
          if($SetDC){
             if(($Force) -or ($PSCmdlet.ShouldProcess($Target, "Set DC value to $value"))){
                $commands += {powercfg /setdcvalueindex ($selPowerScheme) ($Groupguid) ($Settingguid) $value}
+               Write-Verbose "Changing DC value to $value"
             }
          }
 
@@ -367,11 +377,13 @@ function Set-PowercfgSettings
          if($SetAC){
             if(($Force) -or ($pscmdlet.ShouldProcess($Target, "Set AC value to $value"))){
                $commands += {powercfg /setacvalueindex $p_PowerScheme.guid.guid $p_SubGroup.guid.guid $p_Setting.guid.guid $value}
+               Write-Verbose "Setting AC value to $value"
             }
          }
          if($SetDC){
             if(($Force) -or ($PSCmdlet.ShouldProcess($Target, "Set DC value to $value"))){
                $commands += {powercfg /setdcvalueindex $p_PowerScheme.guid.guid $p_SubGroup.guid.guid $p_Setting.guid.guid $value}
+               Write-Verbose "Setting DC value to $value"
             }
          }
 
@@ -400,6 +412,7 @@ function Set-PowercfgSettings
                      & powercfg /setacvalueindex $p_PowerScheme $p_SubGroup $p_Setting $Value
                   }
                } -ArgumentList $p_PowerScheme.guid.guid,$p_SubGroup.guid.guid,$p_Setting.guid.guid,$Value
+               Write-Verbose "Sent change of values as follows: AC: $SetAC; DC: $SetDC; Value: $value"
                Get-PowercfgSettings @PassThru
             }
             Catch{
